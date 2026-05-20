@@ -99,6 +99,7 @@ class SubscriptionsService:
             sub = await self._get_or_raise(subscription_id)
             self._assert_transition(sub.state, "canceled")
             sub = await self.subscription_repo.update_state(sub, "canceled", canceled_at=datetime.now(timezone.utc))
+            await self._fire_webhook(sub, "canceled")
             return sub
         except Exception as error:
             raise error
@@ -108,6 +109,7 @@ class SubscriptionsService:
             sub = await self._get_or_raise(subscription_id)
             self._assert_transition(sub.state, "expired")
             sub = await self.subscription_repo.update_state(sub, "expired")
+            await self._fire_webhook(sub, "expired")
             return sub
         except Exception as error:
             raise error
@@ -143,3 +145,39 @@ class SubscriptionsService:
             return self._check_active_subscription_tier(tier=tier)            
         except Exception as error:
             raise error
+
+    async def get_subscription(self, subscription_id: uuid.UUID):
+        try:
+            return await self._get_or_raise(subscription_id)
+        except Exception as error:
+            raise error
+
+    async def _fire_webhook(self, sub, status: str):
+        try:
+            plan = await self.plans_repo.get_plan_by_name(sub.plan_id)
+            tier = plan.tier if plan else ""
+
+            from ..models.usage_log import UsageLog
+            from sqlalchemy import select
+            log_res = await self.subscription_repo.db.execute(
+                select(UsageLog.installation_uuid)
+                .where(UsageLog.subscription_id == sub.id)
+                .order_by(UsageLog.received_at.desc())
+                .limit(1)
+            )
+            installation_uuid = log_res.scalar_one_or_none()
+
+            import httpx
+            async with httpx.AsyncClient() as client:
+                await client.post(
+                    "http://localhost:8000/subscription/webhook/update",
+                    json={
+                        "installation_uuid": str(installation_uuid) if installation_uuid else "",
+                        "status": status,
+                        "tier": tier
+                    },
+                    timeout=5.0
+                )
+        except Exception as e:
+            print(f"Failed to fire outbound webhook: {e}")
+

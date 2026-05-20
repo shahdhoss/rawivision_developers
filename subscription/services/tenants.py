@@ -18,3 +18,10 @@ class TenantsService:
             return tenants
         except Exception as error:
             raise error
+
+    async def get_tenant_by_id(self, tenant_id):
+        try:
+            return await self.repo.get_tenant_by_id(tenant_id)
+        except Exception as error:
+            raise error
+
