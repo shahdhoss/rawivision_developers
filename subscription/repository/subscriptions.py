@@ -19,6 +19,13 @@ class SubscriptionsRepository:
             return new_sub
         except Exception as error:
             raise error
+    
+    async def get_all_subscriptions(self):
+        try:
+            result = await self.db.execute(select(Subscriptions))
+            return result.scalars().all()
+        except Exception as error:
+            raise error
 
     async def get_by_id(self, subscription_id: uuid.UUID):
         try:

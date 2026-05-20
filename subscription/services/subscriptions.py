@@ -4,8 +4,8 @@ from ..schemas.subscriptions import SubscriptionCreate, CheckInRequest
 from ..schemas.license import LicenseTokenPayload
 from ..services.license import LicenseService
 from ..utils.exceptions import SubscriptionNotFound, InvalidStateTransition, PlanNotFound
+from datetime import datetime, timezone, timedelta
 from dateutil.relativedelta import relativedelta
-from datetime import datetime, timezone
 import uuid
 
 class SubscriptionsService:
@@ -23,13 +23,10 @@ class SubscriptionsService:
         self.TERMINAL_STATES = {"canceled", "expired"}
     
     # helper functions
-    def _calculate_trial_end(self, subscription_type: str):
+    def _calculate_trial_end(self):
         now = datetime.now(timezone.utc)
-        if subscription_type == "monthly":
-            return now + relativedelta(months=1)
-        elif subscription_type == "annual":
-            return now + relativedelta(years=1)
-        raise ValueError("Invalid subscription_type. Use 'monthly' or 'annual'.")
+        return now + timedelta(days=14)
+        
 
     def _get_entitlements(self, plan_name: str):
         defaults = {"plan": plan_name}
@@ -63,9 +60,16 @@ class SubscriptionsService:
             plan = await self.plans_repo.get_plan_by_name(subscription.plan_id)
             if not plan:
                 raise PlanNotFound(f"Plan '{subscription.plan_id}' not found")
-            trial_ends_at = self._calculate_trial_end(subscription.subscription_type)
+            trial_ends_at = self._calculate_trial_end()
             sub = await self.subscription_repo.create_subscription(subscription=subscription, trial_ends_at=trial_ends_at)
             return sub
+        except Exception as error:
+            raise error
+    
+    async def get_all_subscriptions(self):
+        try:
+            subscriptions = await self.subscription_repo.get_all_subscriptions()
+            return subscriptions
         except Exception as error:
             raise error
 
