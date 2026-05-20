@@ -30,3 +30,11 @@ class TenantsRepository:
             return result.scalars().all()
         except Exception as error:
             raise error
+
+    async def get_tenant_by_id(self, tenant_id):
+        try:
+            result = await self.db.execute(select(Tenants).where(Tenants.id == tenant_id))
+            return result.scalars().one_or_none()
+        except Exception as error:
+            raise error
+
