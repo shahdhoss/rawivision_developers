@@ -14,8 +14,8 @@ class SubscriptionsService:
         self.plans_repo = plans_repo
         self.license_service = LicenseService()
         self.VALID_TRANSITIONS = {
-            "trial":    {"active", "canceled"},
-            "active":   {"past_due", "canceled"},
+            "trial":    {"active", "canceled", "expired"},
+            "active":   {"past_due", "canceled", "expired"},
             "past_due": {"active", "canceled", "expired"},
             "canceled": set(),
             "expired":  set(),
